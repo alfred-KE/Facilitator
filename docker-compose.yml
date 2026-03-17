@@ -1,0 +1,88 @@
+# =============================================================================
+# Aventure Studio - Multi-App Deployment
+# =============================================================================
+# Ce fichier orchestre toutes les apps sous *.aventure-studio.com
+# Traefik gère automatiquement le routing par sous-domaine + les certificats SSL
+#
+# Pour ajouter une nouvelle app :
+# 1. Ajoute un service ci-dessous
+# 2. Ajoute les labels Traefik avec le bon sous-domaine
+# 3. docker compose up -d
+# =============================================================================
+
+services:
+  # ---------------------------------------------------------------------------
+  # Reverse Proxy - Traefik
+  # ---------------------------------------------------------------------------
+  traefik:
+    image: traefik:v3.0
+    restart: unless-stopped
+    command:
+      - "--api.dashboard=true"
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--entrypoints.web.address=:80"
+      - "--entrypoints.websecure.address=:443"
+      # Redirect HTTP -> HTTPS
+      - "--entrypoints.web.http.redirections.entryPoint.to=websecure"
+      - "--entrypoints.web.http.redirections.entryPoint.scheme=https"
+      # Let's Encrypt automatic SSL
+      - "--certificatesresolvers.letsencrypt.acme.httpchallenge=true"
+      - "--certificatesresolvers.letsencrypt.acme.httpchallenge.entrypoint=web"
+      - "--certificatesresolvers.letsencrypt.acme.email=${ACME_EMAIL:-admin@aventure-studio.com}"
+      - "--certificatesresolvers.letsencrypt.acme.storage=/letsencrypt/acme.json"
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - letsencrypt:/letsencrypt
+    labels:
+      # Traefik dashboard at traefik.aventure-studio.com
+      - "traefik.enable=true"
+      - "traefik.http.routers.dashboard.rule=Host(`traefik.aventure-studio.com`)"
+      - "traefik.http.routers.dashboard.service=api@internal"
+      - "traefik.http.routers.dashboard.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.dashboard.middlewares=auth"
+      - "traefik.http.middlewares.auth.basicauth.users=${TRAEFIK_DASHBOARD_AUTH:-}"
+    networks:
+      - aventure-network
+
+  # ---------------------------------------------------------------------------
+  # Facilitator - facilitator.aventure-studio.com
+  # ---------------------------------------------------------------------------
+  facilitator:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.facilitator.rule=Host(`facilitator.aventure-studio.com`)"
+      - "traefik.http.routers.facilitator.tls.certresolver=letsencrypt"
+      - "traefik.http.services.facilitator.loadbalancer.server.port=3000"
+    networks:
+      - aventure-network
+
+  # ---------------------------------------------------------------------------
+  # TEMPLATE - Pour ajouter une nouvelle app, copie ce bloc :
+  # ---------------------------------------------------------------------------
+  # mon-app:
+  #   build:
+  #     context: ../MonApp          # chemin vers le repo de l'app
+  #     dockerfile: Dockerfile
+  #   restart: unless-stopped
+  #   labels:
+  #     - "traefik.enable=true"
+  #     - "traefik.http.routers.mon-app.rule=Host(`mon-app.aventure-studio.com`)"
+  #     - "traefik.http.routers.mon-app.tls.certresolver=letsencrypt"
+  #     - "traefik.http.services.mon-app.loadbalancer.server.port=3000"
+  #   networks:
+  #     - aventure-network
+
+networks:
+  aventure-network:
+    driver: bridge
+
+volumes:
+  letsencrypt:
