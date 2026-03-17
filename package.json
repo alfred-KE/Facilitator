@@ -6,7 +6,9 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "deploy": "./scripts/deploy.sh --prod",
+    "deploy:preview": "./scripts/deploy.sh"
   },
   "dependencies": {
     "next": "^14.2.0",
