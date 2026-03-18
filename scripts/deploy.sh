@@ -16,8 +16,9 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-# Load .env if present
-[[ -f "$SCRIPT_DIR/../.env" ]] && set -a && source "$SCRIPT_DIR/../.env" && set +a
+# Load shared .env from workspace root (parent of project)
+WORKSPACE_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+[[ -f "$WORKSPACE_ROOT/.env" ]] && set -a && source "$WORKSPACE_ROOT/.env" && set +a
 
 # Load GoDaddy DNS helper
 source "$SCRIPT_DIR/godaddy-dns.sh"
