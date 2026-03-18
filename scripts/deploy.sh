@@ -14,6 +14,14 @@
 #
 set -euo pipefail
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# Load .env if present
+[[ -f "$SCRIPT_DIR/../.env" ]] && set -a && source "$SCRIPT_DIR/../.env" && set +a
+
+# Load GoDaddy DNS helper
+source "$SCRIPT_DIR/godaddy-dns.sh"
+
 # ── Config ──────────────────────────────────────────────────────────
 TEAM="${VERCEL_TEAM:-}"            # --scope flag, leave empty for personal
 TOKEN="${VERCEL_TOKEN:-}"          # optional, for CI/headless usage
@@ -74,10 +82,14 @@ if [[ -n "$DOMAIN" ]]; then
   echo ""
   echo "Adding domain: $DOMAIN"
   run_vercel domains add "$DOMAIN" --yes 2>/dev/null || true
+
+  # Auto-configure DNS via GoDaddy
+  SUBDOMAIN="${DOMAIN%%.*}"
+  BASE_DOMAIN="${DOMAIN#*.}"
+  godaddy_set_cname "$SUBDOMAIN" "$BASE_DOMAIN" "cname.vercel-dns.com"
+
   echo ""
   echo "Domain $DOMAIN configured."
-  echo "Make sure your DNS has:"
-  echo "  CNAME  ${DOMAIN%%.*}  →  cname.vercel-dns.com"
 fi
 
 echo ""

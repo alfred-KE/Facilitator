@@ -20,6 +20,14 @@
 #
 set -euo pipefail
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# Load .env if present
+[[ -f "$SCRIPT_DIR/../.env" ]] && set -a && source "$SCRIPT_DIR/../.env" && set +a
+
+# Load GoDaddy DNS helper
+source "$SCRIPT_DIR/godaddy-dns.sh"
+
 # ── Validate ────────────────────────────────────────────────────────
 if [[ $# -lt 2 ]]; then
   echo "Usage: $0 <base-domain> <app:repo> [app:repo] ..."
@@ -73,7 +81,12 @@ for entry in "$@"; do
   echo "→ Adding domain $SUBDOMAIN..."
   $cmd_base domains add "$SUBDOMAIN" --yes 2>/dev/null || true
 
-  DNS_RECORDS+=("CNAME  $APP  →  cname.vercel-dns.com")
+  # Create DNS record via GoDaddy API
+  if godaddy_set_cname "$APP" "$BASE_DOMAIN" "cname.vercel-dns.com"; then
+    DNS_RECORDS+=("✓ CNAME  $APP  →  cname.vercel-dns.com  (auto-configured)")
+  else
+    DNS_RECORDS+=("✗ CNAME  $APP  →  cname.vercel-dns.com  (manual setup needed)")
+  fi
 
   popd > /dev/null
 done
@@ -84,7 +97,7 @@ echo "━━━━━━━━━━━━━━━━━━━━━━━━�
 echo "  All apps deployed!"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo ""
-echo "Configure these DNS records at your registrar:"
+echo "DNS records status:"
 echo ""
 for record in "${DNS_RECORDS[@]}"; do
   echo "  $record"
