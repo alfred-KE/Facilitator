@@ -7,9 +7,14 @@
 #
 # Example:
 #   ./scripts/setup-multi-app.sh aventure-studio.com \
-#     facilitator:alfred-KE/Facilitator \
-#     synapse:alfred-KE/Synapse \
-#     james:alfred-KE/James
+#     facilitator:alfred-KE/Facilitator:Facilitator \
+#     synapse:alfred-KE/veille-documentaire:Synapse \
+#     ke:alfred-KE/knowledge-engine-v2:knowledge-engine-v2
+#
+# Format: <subdomain>:<github-repo>[:local-dir]
+#   subdomain  = the subdomain prefix (e.g. "facilitator" → facilitator.aventure-studio.com)
+#   github-repo = GitHub owner/repo for cloning
+#   local-dir   = optional local directory name (defaults to capitalized subdomain)
 #
 # This will:
 #   1. Clone each repo (if not already local)
@@ -49,10 +54,10 @@ cmd_base="vercel"
 DNS_RECORDS=()
 
 for entry in "$@"; do
-  APP="${entry%%:*}"
-  REPO="${entry#*:}"
+  IFS=':' read -r APP REPO LOCAL_DIR <<< "$entry"
+  LOCAL_DIR="${LOCAL_DIR:-${APP^}}"  # Default: capitalize first letter
   SUBDOMAIN="${APP}.${BASE_DOMAIN}"
-  DIR="${WORKSPACE}/${APP^}"  # Capitalize first letter for dir name
+  DIR="${WORKSPACE}/${LOCAL_DIR}"
 
   echo ""
   echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
